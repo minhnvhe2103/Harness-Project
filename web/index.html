@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supervisor / Orchestrator - Multi-Tab Agent Monitor</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Marked.js for Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #09090b; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+    .prose pre { background-color: #09090b !important; border: 1px solid #27272a; border-radius: 0.5rem; padding: 0.75rem 1rem; }
+    .prose code { color: #38bdf8 !important; }
+    .tab-active {
+      border-bottom: 2px solid #f59e0b;
+      color: #fbbf24;
+      background-color: rgba(245, 158, 11, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col font-sans antialiased selection:bg-amber-500/30">
+
+  <!-- Top Navigation Header -->
+  <header class="h-14 border-b border-zinc-800 bg-zinc-900/90 backdrop-blur px-4 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 via-purple-500 to-cyan-500 flex items-center justify-center font-bold text-zinc-950 shadow-md">
+        👑
+      </div>
+      <div>
+        <h1 class="text-sm font-semibold tracking-wide flex items-center gap-2">
+          Supervisor Multi-Agent Dashboard
+          <span class="text-[10px] font-mono uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded">Saga Orchestrator</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center space-x-3">
+      <div class="hidden sm:flex items-center text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-lg gap-2">
+        <span>Giao tiếp:</span>
+        <span class="text-amber-400 font-semibold flex items-center gap-1">👑 Supervisor Only</span>
+      </div>
+      <button id="resetBtn" onclick="resetChat()" class="text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 border border-zinc-800 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        Reset Toàn Bộ
+      </button>
+    </div>
+  </header>
+
+  <!-- Supervisor Top Configuration Banner -->
+  <section class="border-b border-zinc-800/80 bg-zinc-900/40 px-4 py-2.5 backdrop-blur z-20">
+    <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center space-x-2 text-zinc-300">
+        <span class="text-lg">👑</span>
+        <span class="font-bold text-amber-400">Supervisor:</span>
+        <span class="text-zinc-400">Bạn chỉ cần gửi lệnh cho Quản lý. Supervisor sẽ tự chia nhỏ việc và điều động các Worker.</span>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-1.5">
+          <span class="text-zinc-500">Model Supervisor:</span>
+          <select id="supervisorModelSelect" onchange="updateSupervisorModel(this.value)" class="bg-zinc-950 text-amber-300 rounded border border-amber-500/40 px-2 py-0.5 outline-none font-mono">
+            <!-- Dynamic options -->
+          </select>
+        </div>
+        <div id="workersToggleList" class="flex items-center gap-2">
+          <!-- Dynamic worker toggles -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB NAVIGATION BAR -->
+  <nav class="border-b border-zinc-800 bg-zinc-900/70 px-4 flex items-center justify-between z-20">
+    <div class="flex items-center space-x-1 overflow-x-auto">
+      <!-- Tab 1: Supervisor -->
+      <button id="tab-btn-supervisor" onclick="switchTab('supervisor')" class="tab-btn tab-active px-4 py-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 transition whitespace-nowrap">
+        <span>👑</span>
+        <span>Supervisor (Chat & Chỉ huy)</span>
+        <span id="badge-supervisor" class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full">Sẵn sàng</span>
+      </button>
+
+      <!-- Tab 2: Researcher -->
+      <button id="tab-btn-researcher" onclick="switchTab('researcher')" class="tab-btn px-4 py-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 flex items-center gap-2 border-b-2 border-transparent transition whitespace-nowrap">
+        <span>🔍</span>
+        <span>Researcher (Khảo sát)</span>
+        <span id="badge-researcher" class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.2 rounded-full font-mono">Idle</span>
+      </button>
+
+      <!-- Tab 3: Coder -->
+      <button id="tab-btn-coder" onclick="switchTab('coder')" class="tab-btn px-4 py-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 flex items-center gap-2 border-b-2 border-transparent transition whitespace-nowrap">
+        <span>💻</span>
+        <span>Coder (Lập trình)</span>
+        <span id="badge-coder" class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.2 rounded-full font-mono">Idle</span>
+      </button>
+
+      <!-- Tab 4: Reviewer -->
+      <button id="tab-btn-reviewer" onclick="switchTab('reviewer')" class="tab-btn px-4 py-2.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 flex items-center gap-2 border-b-2 border-transparent transition whitespace-nowrap">
+        <span>🛡️</span>
+        <span>Reviewer (Kiểm duyệt)</span>
+        <span id="badge-reviewer" class="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.2 rounded-full font-mono">Idle</span>
+      </button>
+    </div>
+
+    <!-- Active Indicator -->
+    <div class="hidden sm:flex items-center text-[11px] text-zinc-500 font-mono">
+      <span>Auto-log Realtime 🟢</span>
+    </div>
+  </nav>
+
+  <!-- Main Work Area -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- Left Sidebar: Workspace Files -->
+    <aside class="w-60 border-r border-zinc-800 bg-zinc-900/30 flex flex-col justify-between hidden lg:flex">
+      <div class="p-4 space-y-4 overflow-y-auto">
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Workspace Files</h2>
+            <button onclick="loadFiles()" title="Reload files" class="text-xs text-zinc-400 hover:text-zinc-200">↻</button>
+          </div>
+          <div id="fileList" class="space-y-1 text-xs text-zinc-400 font-mono max-h-72 overflow-y-auto pr-1">
+            <div class="text-zinc-500 italic">Đang tải...</div>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-[11px] text-zinc-400 space-y-1">
+          <div class="font-semibold text-zinc-300">💡 Hướng dẫn Tabs:</div>
+          <div>• <b>Tab Supervisor:</b> Nơi bạn nhập yêu cầu và nhận câu trả lời tổng hợp.</div>
+          <div>• <b>Các Tab Worker:</b> Mở ra để xem log chạy ngầm, lệnh terminal và code của từng con.</div>
+        </div>
+      </div>
+
+      <div class="p-3 border-t border-zinc-800 text-[11px] text-zinc-500 flex items-center justify-between">
+        <span>Saga Orchestrator</span>
+        <span class="flex items-center gap-1.5 text-emerald-400">● Live</span>
+      </div>
+    </aside>
+
+    <!-- Center: TAB CONTENTS CONTAINER -->
+    <main class="flex-1 flex flex-col bg-zinc-950 overflow-hidden relative">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: SUPERVISOR (MAIN DIALOGUE & INPUT) -->
+      <!-- ========================================== -->
+      <div id="tab-content-supervisor" class="tab-pane flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Messages Area -->
+        <div id="supervisorChatMessages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+          <!-- Welcome Box -->
+          <div class="max-w-2xl mx-auto bg-gradient-to-b from-amber-950/20 to-zinc-900/50 border border-amber-500/30 rounded-xl p-5 shadow-xl text-center space-y-3 my-4">
+            <div class="w-12 h-12 mx-auto rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-2xl">
+              👑
+            </div>
+            <div>
+              <h2 class="text-base font-semibold text-zinc-100">Kênh Giao tiếp với Supervisor (Quản lý trưởng)</h2>
+              <p class="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed mt-1">
+                Bạn chỉ giao tiếp trực tiếp tại đây. Supervisor sẽ tự động giao việc cho <b>Researcher</b>, <b>Coder</b>, <b>Reviewer</b>. Bạn có thể bấm vào các Tab phía trên để xem chi tiết tiến trình từng con.
+              </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2 justify-center pt-2">
+              <button onclick="sendQuickPrompt('Khảo sát thư mục tools, viết file generate_slug.py chuyển tiếng Việt sang slug và review lại')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg border border-zinc-700 transition">
+                🚀 Khảo sát ➔ Viết slug.py ➔ Review
+              </button>
+              <button onclick="sendQuickPrompt('Liệt kê cấu trúc dự án và kiểm tra các file adapter')" class="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg border border-zinc-700 transition">
+                🔍 Chỉ khảo sát mã nguồn
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="p-4 border-t border-zinc-800/80 bg-zinc-900/60 backdrop-blur">
+          <div class="max-w-3xl mx-auto">
+            <form id="chatForm" onsubmit="handleSend(event)" class="relative flex items-center">
+              <textarea
+                id="promptInput"
+                rows="1"
+                placeholder="Nhập yêu cầu gửi cho Supervisor... (Enter để gửi, Shift+Enter xuống dòng)"
+                class="w-full bg-zinc-900 border border-zinc-700 focus:border-amber-500 rounded-xl py-3.5 pl-4 pr-14 text-sm text-zinc-100 placeholder-zinc-500 outline-none resize-none transition shadow-inner"
+                onkeydown="handleKeyDown(event)"
+              ></textarea>
+              <button
+                id="sendBtn"
+                type="submit"
+                class="absolute right-2.5 top-2.5 bottom-2.5 w-9 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-amber-500/20"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
+            </form>
+            <div class="text-[11px] text-zinc-500 text-center mt-2">
+              👑 Bạn gửi lệnh cho Supervisor ➔ Supervisor ra quyết định và tự động phân phối các Worker.
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: RESEARCHER WORKER PROGRESS LOG      -->
+      <!-- ========================================== -->
+      <div id="tab-content-researcher" class="tab-pane hidden flex-1 flex flex-col overflow-y-auto p-4 sm:p-6 space-y-3">
+        <div class="max-w-4xl mx-auto w-full space-y-3">
+          <div class="flex items-center justify-between p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/30">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🔍</span>
+              <div>
+                <h3 class="text-xs font-bold text-cyan-300">Researcher Worker - Tiến trình khảo sát & đọc tài liệu</h3>
+                <p class="text-[11px] text-zinc-400">Các công cụ được cấp: <code>read_file</code>, <code>list_directory</code></p>
+              </div>
+            </div>
+            <span id="status-card-researcher" class="text-xs font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">Idle</span>
+          </div>
+
+          <div id="log-researcher" class="space-y-3 text-xs">
+            <div class="text-zinc-500 italic text-center py-10">Chưa có tác vụ nào được giao cho Researcher.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: CODER WORKER PROGRESS LOG           -->
+      <!-- ========================================== -->
+      <div id="tab-content-coder" class="tab-pane hidden flex-1 flex flex-col overflow-y-auto p-4 sm:p-6 space-y-3">
+        <div class="max-w-4xl mx-auto w-full space-y-3">
+          <div class="flex items-center justify-between p-3 rounded-xl bg-purple-950/20 border border-purple-500/30">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">💻</span>
+              <div>
+                <h3 class="text-xs font-bold text-purple-300">Coder Worker - Tiến trình lập trình & thực thi code</h3>
+                <p class="text-[11px] text-zinc-400">Các công cụ được cấp: <code>write_file</code>, <code>read_file</code>, <code>run_command</code></p>
+              </div>
+            </div>
+            <span id="status-card-coder" class="text-xs font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">Idle</span>
+          </div>
+
+          <div id="log-coder" class="space-y-3 text-xs">
+            <div class="text-zinc-500 italic text-center py-10">Chưa có tác vụ nào được giao cho Coder.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: REVIEWER WORKER PROGRESS LOG        -->
+      <!-- ========================================== -->
+      <div id="tab-content-reviewer" class="tab-pane hidden flex-1 flex flex-col overflow-y-auto p-4 sm:p-6 space-y-3">
+        <div class="max-w-4xl mx-auto w-full space-y-3">
+          <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-950/20 border border-emerald-500/30">
+            <div class="flex items-center space-x-2">
+              <span class="text-xl">🛡️</span>
+              <div>
+                <h3 class="text-xs font-bold text-emerald-300">Reviewer Worker - Tiến trình thẩm định & kiểm thử QA</h3>
+                <p class="text-[11px] text-zinc-400">Các công cụ được cấp: <code>read_file</code>, <code>run_command</code> (test)</p>
+              </div>
+            </div>
+            <span id="status-card-reviewer" class="text-xs font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">Idle</span>
+          </div>
+
+          <div id="log-reviewer" class="space-y-3 text-xs">
+            <div class="text-zinc-500 italic text-center py-10">Chưa có tác vụ nào được giao cho Reviewer.</div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // Tab switching
+    let currentTab = 'supervisor';
+    function switchTab(tabId) {
+      currentTab = tabId;
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('tab-active');
+        btn.classList.add('border-transparent', 'text-zinc-400');
+      });
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.add('hidden'));
+
+      const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.add('tab-active');
+        activeBtn.classList.remove('border-transparent', 'text-zinc-400');
+      }
+
+      const activePane = document.getElementById(`tab-content-${tabId}`);
+      if (activePane) activePane.classList.remove('hidden');
+    }
+
+    const supervisorChatMessages = document.getElementById('supervisorChatMessages');
+    const promptInput = document.getElementById('promptInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const supervisorModelSelect = document.getElementById('supervisorModelSelect');
+    const workersToggleList = document.getElementById('workersToggleList');
+    const fileList = document.getElementById('fileList');
+
+    let isProcessing = false;
+    let workerList = [];
+    let availableModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "claude-3-7-sonnet-20250219"];
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadModels();
+      await loadTeam();
+      await loadFiles();
+    });
+
+    async function loadModels() {
+      try {
+        const res = await fetch('/api/models');
+        const data = await res.json();
+        if (data.models) availableModels = data.models;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadTeam() {
+      try {
+        const res = await fetch('/api/team');
+        const data = await res.json();
+        
+        if (data.supervisor) {
+          supervisorModelSelect.innerHTML = availableModels.map(m => 
+            `<option value="${m}" ${m === data.supervisor.model ? 'selected' : ''}>${m}</option>`
+          ).join('');
+        }
+
+        workerList = data.workers || [];
+        renderWorkerToggles();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderWorkerToggles() {
+      workersToggleList.innerHTML = '';
+      workerList.forEach(w => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-1.5 cursor-pointer bg-zinc-950 px-2 py-1 rounded border border-zinc-800 text-[11px]';
+        label.innerHTML = `
+          <span>${w.avatar}</span>
+          <span class="text-zinc-300 font-medium">${w.name}:</span>
+          <input type="checkbox" ${w.enabled ? 'checked' : ''} onchange="toggleWorker('${w.id}', this.checked)" class="accent-amber-500 cursor-pointer">
+        `;
+        workersToggleList.appendChild(label);
+      });
+    }
+
+    async function toggleWorker(workerId, enabled) {
+      try {
+        const w = workerList.find(x => x.id === workerId);
+        if (w) w.enabled = enabled;
+        await fetch('/api/team/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: workerId, enabled: enabled }),
+        });
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+      }
+    }
+
+    async function updateSupervisorModel(model) {
+      try {
+        await fetch('/api/team/toggle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: 'supervisor', model: model }),
+        });
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+      }
+    }
+
+    async function loadFiles() {
+      try {
+        const res = await fetch('/api/files');
+        const data = await res.json();
+        fileList.innerHTML = '';
+        data.files.forEach(f => {
+          const item = document.createElement('div');
+          item.className = 'flex items-center justify-between py-1 px-1.5 rounded hover:bg-zinc-800/60 truncate cursor-default';
+          item.innerHTML = `
+            <span class="truncate ${f.is_dir ? 'text-amber-300 font-semibold' : 'text-zinc-300'}">${f.is_dir ? '📁 ' : '📄 '}${f.name}</span>
+            <span class="text-[10px] text-zinc-600">${f.size}</span>
+          `;
+          fileList.appendChild(item);
+        });
+      } catch (err) {
+        fileList.innerHTML = '<div class="text-red-400">Lỗi tải file</div>';
+      }
+    }
+
+    function sendQuickPrompt(text) {
+      promptInput.value = text;
+      handleSend(new Event('submit'));
+    }
+
+    function handleKeyDown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend(e);
+      }
+    }
+
+    function appendUserMessage(text) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'max-w-3xl mx-auto flex items-start gap-3 justify-end my-3';
+      msgDiv.innerHTML = `
+        <div class="bg-amber-600 text-white text-sm px-4 py-2.5 rounded-2xl rounded-tr-none shadow-md max-w-[85%] whitespace-pre-wrap">
+          ${escapeHtml(text)}
+        </div>
+        <div class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-semibold text-zinc-300 shrink-0">
+          U
+        </div>
+      `;
+      supervisorChatMessages.appendChild(msgDiv);
+      supervisorChatMessages.scrollTop = supervisorChatMessages.scrollHeight;
+    }
+
+    function startSupervisorTurnContainer() {
+      const turnDiv = document.createElement('div');
+      turnDiv.className = 'max-w-3xl mx-auto space-y-3.5 my-4';
+      supervisorChatMessages.appendChild(turnDiv);
+      return turnDiv;
+    }
+
+    function setWorkerBadge(workerId, status, isRunning = false) {
+      const badge = document.getElementById(`badge-${workerId}`);
+      const cardBadge = document.getElementById(`status-card-${workerId}`);
+      if (badge) {
+        badge.textContent = status;
+        badge.className = isRunning
+          ? 'text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.2 rounded-full animate-pulse border border-amber-500/40'
+          : 'text-[10px] bg-emerald-950/80 text-emerald-400 px-1.5 py-0.2 rounded-full border border-emerald-900';
+      }
+      if (cardBadge) {
+        cardBadge.textContent = status;
+        cardBadge.className = isRunning
+          ? 'text-xs font-mono text-amber-300 bg-amber-950/60 border border-amber-800 px-2.5 py-0.5 rounded-full animate-pulse'
+          : 'text-xs font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-900 px-2.5 py-0.5 rounded-full';
+      }
+    }
+
+    async function handleSend(e) {
+      if (e) e.preventDefault();
+      const prompt = promptInput.value.trim();
+      if (!prompt || isProcessing) return;
+
+      isProcessing = true;
+      sendBtn.disabled = true;
+      promptInput.value = '';
+
+      // Ensure we start on Supervisor tab
+      switchTab('supervisor');
+
+      appendUserMessage(prompt);
+      const turnContainer = startSupervisorTurnContainer();
+
+      // Reset worker tab placeholders if first run
+      ['researcher', 'coder', 'reviewer'].forEach(w => {
+        setWorkerBadge(w, 'Idle', false);
+      });
+
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: prompt }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop();
+
+          for (const chunk of lines) {
+            if (!chunk.trim()) continue;
+            const eventMatch = chunk.match(/^event:\s*(.+)$/m);
+            const dataMatch = chunk.match(/^data:\s*(.+)$/m);
+
+            if (dataMatch) {
+              const eventType = eventMatch ? eventMatch[1].trim() : 'message';
+              const eventData = JSON.parse(dataMatch[1]);
+              routeMultiAgentEvent(turnContainer, eventType, eventData);
+            }
+          }
+        }
+      } catch (err) {
+        turnContainer.innerHTML += `<div class="text-xs text-red-400 p-2.5 bg-red-950/40 border border-red-900 rounded-lg">Lỗi: ${err.message}</div>`;
+      } finally {
+        isProcessing = false;
+        sendBtn.disabled = false;
+        loadFiles();
+      }
+    }
+
+    function routeMultiAgentEvent(turnContainer, type, data) {
+      // ==========================================
+      // ROUTING: SUPERVISOR EVENTS (Tab Supervisor)
+      // ==========================================
+      if (type === 'supervisor_start') {
+        const startDiv = document.createElement('div');
+        startDiv.className = 'bg-amber-950/20 border border-amber-500/30 rounded-xl p-3 text-xs space-y-1.5';
+        startDiv.innerHTML = `
+          <div class="flex items-center justify-between text-amber-300 font-bold">
+            <span>👑 SUPERVISOR ĐANG PHÂN TÍCH NHIỆM VỤ</span>
+            <span class="text-[10px] font-mono text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800">${data.supervisor_model}</span>
+          </div>
+          <div class="text-zinc-400 text-[11px]">Supervisor đang lập kế hoạch và sẽ phân công cho các Worker...</div>
+        `;
+        turnContainer.appendChild(startDiv);
+      }
+      else if (type === 'supervisor_thought' && data.text) {
+        const thoughtDiv = document.createElement('div');
+        thoughtDiv.className = 'text-xs text-amber-200/90 italic bg-amber-950/30 border-l-2 border-amber-500 pl-3 py-1.5 rounded-r my-1';
+        thoughtDiv.innerHTML = `<b>[Kế hoạch Supervisor]:</b> ${escapeHtml(data.text)}`;
+        turnContainer.appendChild(thoughtDiv);
+      }
+      else if (type === 'supervisor_delegates') {
+        setWorkerBadge(data.worker_id, 'Đang chạy 🔴', true);
+
+        // Banner in Supervisor Chat with a one-click button to jump to Worker tab
+        const delegateCard = document.createElement('div');
+        delegateCard.className = 'p-3 bg-zinc-900/90 border border-zinc-800 rounded-xl flex items-center justify-between shadow-sm';
+        delegateCard.innerHTML = `
+          <div class="flex items-center space-x-2 text-xs">
+            <span class="text-lg">${data.worker_avatar}</span>
+            <div>
+              <div class="font-semibold text-zinc-200">
+                Supervisor giao việc cho <span class="text-amber-400 font-bold">${data.worker_name} Worker</span>:
+              </div>
+              <div class="text-[11px] text-zinc-400"><i>${escapeHtml(data.instructions)}</i></div>
+            </div>
+          </div>
+          <button onclick="switchTab('${data.worker_id}')" class="text-[11px] bg-zinc-800 hover:bg-zinc-700 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 shrink-0 transition">
+            Xem Tab ${data.worker_name} ➔
+          </button>
+        `;
+        turnContainer.appendChild(delegateCard);
+
+        // Also add header into the dedicated worker log tab
+        const workerLog = document.getElementById(`log-${data.worker_id}`);
+        if (workerLog) {
+          // Clear default placeholder if present
+          if (workerLog.querySelector('.italic')) workerLog.innerHTML = '';
+
+          const taskBlock = document.createElement('div');
+          taskBlock.className = 'p-3.5 bg-zinc-900 border border-zinc-800 rounded-xl space-y-2';
+          taskBlock.innerHTML = `
+            <div class="flex items-center justify-between text-xs font-semibold text-zinc-300 border-b border-zinc-800 pb-2">
+              <span class="flex items-center gap-1.5">
+                <span class="text-amber-400">👑 Nhận chỉ thị từ Supervisor:</span>
+              </span>
+              <span class="text-[10px] text-amber-400 animate-pulse font-mono bg-amber-950/40 px-2 py-0.5 rounded border border-amber-900">Đang thực thi</span>
+            </div>
+            <div class="text-zinc-200 text-xs bg-zinc-950 p-2.5 rounded border border-zinc-800/80">
+              ${escapeHtml(data.instructions)}
+            </div>
+          `;
+          workerLog.appendChild(taskBlock);
+        }
+      }
+      else if (type === 'supervisor_complete') {
+        const finalCard = document.createElement('div');
+        finalCard.className = 'bg-gradient-to-b from-amber-950/20 to-zinc-900 border border-amber-500/40 rounded-xl p-5 shadow-xl text-zinc-200 space-y-2 mt-4';
+        finalCard.innerHTML = `
+          <div class="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2 border-b border-zinc-800/80 pb-2">
+            <span>👑 Phản hồi tổng hợp từ Supervisor tới Người dùng</span>
+          </div>
+          <div class="prose prose-invert prose-sm max-w-none pt-1">
+            ${marked.parse(data.final_response || '')}
+          </div>
+        `;
+        turnContainer.appendChild(finalCard);
+      }
+
+      // ==========================================
+      // ROUTING: WORKER EVENTS (Dedicated Worker Tabs)
+      // ==========================================
+      else if (type === 'worker_thought') {
+        const workerLog = document.getElementById(`log-${data.worker_id}`);
+        if (workerLog) {
+          const thoughtDiv = document.createElement('div');
+          thoughtDiv.className = 'text-xs text-zinc-400 italic bg-zinc-950 border-l-2 border-zinc-700 pl-3 py-1.5 rounded-r';
+          thoughtDiv.textContent = `[Suy nghĩ của ${data.worker_name}]: ${data.text}`;
+          workerLog.appendChild(thoughtDiv);
+        }
+      }
+      else if (type === 'worker_tool_call') {
+        const workerLog = document.getElementById(`log-${data.worker_id}`);
+        if (workerLog) {
+          const toolCard = document.createElement('div');
+          toolCard.id = `tool-${data.id}`;
+          toolCard.className = 'bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs space-y-1.5 shadow-sm';
+          toolCard.innerHTML = `
+            <div class="flex items-center justify-between text-zinc-300 font-medium">
+              <div class="flex items-center gap-1.5">
+                <span class="text-emerald-400 font-mono text-[10px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">TOOL CALL</span>
+                <span class="font-mono font-semibold">${data.name}</span>
+              </div>
+              <span class="text-[10px] text-amber-400 animate-pulse bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-900">Running...</span>
+            </div>
+            <div class="bg-zinc-900 p-2 rounded text-[11px] font-mono text-zinc-400 overflow-x-auto">
+              ${escapeHtml(JSON.stringify(data.arguments, null, 2))}
+            </div>
+            <div class="tool-result-container hidden mt-2 pt-2 border-t border-zinc-800 text-[11px] font-mono text-zinc-300 bg-zinc-900/60 p-2 rounded max-h-48 overflow-y-auto"></div>
+          `;
+          workerLog.appendChild(toolCard);
+        }
+      }
+      else if (type === 'worker_tool_result') {
+        const toolCard = document.getElementById(`tool-${data.id}`);
+        if (toolCard) {
+          const badge = toolCard.querySelector('span:last-child');
+          if (badge) {
+            badge.className = data.is_error ? 'text-[10px] text-red-400 bg-red-950 px-1.5 py-0.5 rounded border border-red-900' : 'text-[10px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-900';
+            badge.textContent = data.is_error ? 'Error' : 'Finished';
+          }
+          const resBox = toolCard.querySelector('.tool-result-container');
+          if (resBox) {
+            resBox.classList.remove('hidden');
+            resBox.textContent = data.output;
+          }
+        }
+      }
+      else if (type === 'worker_reports') {
+        setWorkerBadge(data.worker_id, 'Hoàn thành ✓', false);
+
+        // Put report in worker tab
+        const workerLog = document.getElementById(`log-${data.worker_id}`);
+        if (workerLog) {
+          const reportBlock = document.createElement('div');
+          reportBlock.className = 'p-3.5 bg-emerald-950/20 border border-emerald-500/30 rounded-xl space-y-1.5';
+          reportBlock.innerHTML = `
+            <div class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+              <span>📋 ĐÃ GỬI BÁO CÁO LẠI CHO SUPERVISOR</span>
+            </div>
+            <div class="text-xs text-zinc-300 whitespace-pre-wrap bg-zinc-950 p-2.5 rounded border border-zinc-800">
+              ${escapeHtml(data.report)}
+            </div>
+          `;
+          workerLog.appendChild(reportBlock);
+        }
+
+        // Also notify in supervisor chat that worker reported back
+        const notifyDiv = document.createElement('div');
+        notifyDiv.className = 'text-[11px] text-emerald-400 flex items-center gap-2 px-3 py-1.5 bg-emerald-950/20 rounded-lg border border-emerald-900/50';
+        notifyDiv.innerHTML = `
+          <span>✓</span>
+          <span><b>${data.worker_name} Worker</b> đã hoàn thành nhiệm vụ và nộp báo cáo cho Supervisor.</span>
+          <button onclick="switchTab('${data.worker_id}')" class="text-emerald-300 underline hover:text-white ml-auto">Xem báo cáo ➔</button>
+        `;
+        turnContainer.appendChild(notifyDiv);
+      }
+
+      supervisorChatMessages.scrollTop = supervisorChatMessages.scrollHeight;
+    }
+
+    async function resetChat() {
+      if (!confirm('Bạn có muốn reset toàn bộ hội thoại và logs các worker?')) return;
+      try {
+        await fetch('/api/reset', { method: 'POST' });
+        supervisorChatMessages.innerHTML = '';
+        ['researcher', 'coder', 'reviewer'].forEach(w => {
+          const l = document.getElementById(`log-${w}`);
+          if (l) l.innerHTML = `<div class="text-zinc-500 italic text-center py-10">Chưa có tác vụ nào được giao cho ${w}.</div>`;
+          setWorkerBadge(w, 'Idle', false);
+        });
+        loadFiles();
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
